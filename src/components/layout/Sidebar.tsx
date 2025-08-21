@@ -1,15 +1,16 @@
 import { Link, useLocation } from 'react-router-dom'
+import { LayoutDashboard, Users, ListChecks, BookOpen, Building2, Boxes, GraduationCap, FileText, Settings } from 'lucide-react'
 
 const nav = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/users', label: 'Users' },
-  { to: '/quizzes', label: 'Quizzes' },
-  { to: '/subjects', label: 'Subjects' },
-  { to: '/colleges', label: 'Colleges' },
-  { to: '/departments', label: 'Departments' },
-  { to: '/courses', label: 'Courses' },
-  { to: '/tutorials', label: 'Courses/Tutorials' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/users', label: 'Users', icon: Users },
+  { to: '/quizzes', label: 'Quizzes', icon: ListChecks },
+  { to: '/subjects', label: 'Subjects', icon: BookOpen },
+  { to: '/colleges', label: 'Colleges', icon: Building2 },
+  { to: '/departments', label: 'Departments', icon: Boxes },
+  { to: '/courses', label: 'Courses', icon: GraduationCap },
+  { to: '/tutorials', label: 'Courses/Tutorials', icon: FileText },
+  { to: '/settings', label: 'Settings', icon: Settings },
   // Future: { to: '/events', label: 'Events' }, { to: '/groups', label: 'Groups' }
 ]
 
@@ -31,7 +32,7 @@ export default function Sidebar({ collapsed, onNavigate }: { collapsed: boolean,
               className={`flex items-center gap-3 rounded px-3 py-2 text-sm hover:bg-muted ${active ? 'bg-muted' : ''}`}
               onClick={() => { if (onNavigate) onNavigate() }}
             >
-              <span className="inline-block w-4 h-4 rounded bg-muted-foreground/20" />
+              {n.icon ? <n.icon size={18} className="shrink-0 text-muted-foreground" /> : <span className="inline-block w-4 h-4 rounded bg-muted-foreground/20" />}
               {!collapsed && <span className="truncate">{n.label}</span>}
             </Link>
           )
