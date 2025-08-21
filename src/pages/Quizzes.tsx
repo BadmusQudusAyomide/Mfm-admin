@@ -10,6 +10,11 @@ type Quiz = {
   createdAt?: string
 }
 
+type College = { _id: string, name: string, abbr?: string }
+type Department = { _id: string, name: string, code?: string, college: string }
+type Course = { _id: string, code: string, title: string }
+type Subject = { _id: string, title: string, code?: string, course: string }
+
 export default function Quizzes() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,9 +30,19 @@ export default function Quizzes() {
   const [editing, setEditing] = useState<Quiz | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [subject, setSubject] = useState('')
+  const [subject, setSubject] = useState('') // stores Subject _id
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [csvDryRun, setCsvDryRun] = useState(true)
+
+  // Cascading catalog state
+  const [colleges, setColleges] = useState<College[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+
+  const [collegeId, setCollegeId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [courseId, setCourseId] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('token') || ''
@@ -36,6 +51,15 @@ export default function Quizzes() {
   }, [])
 
   useEffect(() => { fetchList() }, [q, active, page, limit])
+
+  // Load colleges initially
+  useEffect(() => { (async () => { try { const r = await api.get('/api/catalog/colleges'); setColleges(r.data?.data ?? r.data ?? []) } catch {} })() }, [])
+  // Load departments when college changes
+  useEffect(() => { if (collegeId) { setDepartments([]); setDepartmentId(''); setCourses([]); setCourseId(''); setSubjects([]); setSubject(''); (async () => { try { const r = await api.get('/api/catalog/departments', { params: { college: collegeId } }); setDepartments(r.data?.data ?? r.data ?? []) } catch {} })() } }, [collegeId])
+  // Load courses when department changes
+  useEffect(() => { if (departmentId) { setCourses([]); setCourseId(''); setSubjects([]); setSubject(''); (async () => { try { const r = await api.get('/api/catalog/courses', { params: { department: departmentId } }); setCourses(r.data?.data ?? r.data ?? []) } catch {} })() } }, [departmentId])
+  // Load subjects when course changes
+  useEffect(() => { if (courseId) { setSubjects([]); setSubject(''); (async () => { try { const r = await api.get('/api/catalog/subjects', { params: { course: courseId } }); setSubjects(r.data?.data ?? r.data ?? []) } catch {} })() } }, [courseId])
 
   async function fetchList() {
     setLoading(true); setError(null)
@@ -51,10 +75,12 @@ export default function Quizzes() {
       } else {
         setError('Unexpected response format')
       }
+
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to load quizzes')
     } finally { setLoading(false) }
   }
+
 
   function resetForm() {
     setEditing(null)
@@ -135,12 +161,31 @@ export default function Quizzes() {
         <div className="font-medium">{editing ? 'Edit quiz' : 'Create quiz'}</div>
         <div className="grid md:grid-cols-3 gap-2">
           <input className="rounded border px-3 py-2 bg-transparent" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="rounded border px-3 py-2 bg-transparent" placeholder="Subject ID" value={subject} onChange={(e) => setSubject(e.target.value)} />
           <input className="rounded border px-3 py-2 bg-transparent" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+          {/* Cascading selectors */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <select className="rounded border px-2 py-2 bg-transparent" value={collegeId} onChange={(e) => setCollegeId(e.target.value)}>
+              <option value="">College</option>
+              {colleges.map(c => (<option key={c._id} value={c._id}>{c.name}</option>))}
+            </select>
+            <select className="rounded border px-2 py-2 bg-transparent" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={!collegeId}>
+              <option value="">Department</option>
+              {departments.map(d => (<option key={d._id} value={d._id}>{d.name}</option>))}
+            </select>
+            <select className="rounded border px-2 py-2 bg-transparent" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={!departmentId}>
+              <option value="">Course</option>
+              {courses.map(c => (<option key={c._id} value={c._id}>{c.code} - {c.title}</option>))}
+            </select>
+            <select className="rounded border px-2 py-2 bg-transparent" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!courseId}>
+              <option value="">Subject</option>
+              {subjects.map(s => (<option key={s._id} value={s._id}>{s.title}</option>))}
+            </select>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button className="rounded border px-3 py-2" onClick={saveQuiz}>{editing ? 'Save changes' : 'Create quiz'}</button>
           {editing && <button className="rounded border px-3 py-2" onClick={resetForm}>Cancel</button>}
+          <a className="text-sm underline" href="/subjects">Manage subjects</a>
         </div>
       </div>
 

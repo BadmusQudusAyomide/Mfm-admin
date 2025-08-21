@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { api, setAuthToken } from '../lib/api'
 
 type Course = { _id: string, code: string, title: string, department?: string, level?: string, published?: boolean, createdAt?: string }
-type Tutorial = { _id: string, course: string, title: string, description?: string, pdf?: any, published?: boolean, createdAt?: string }
+type Tutorial = { _id: string, course?: string, subject?: string, title: string, description?: string, pdf?: any, published?: boolean, createdAt?: string }
+type College = { _id: string, name: string, abbr?: string }
+type Department = { _id: string, name: string, code?: string, college: string }
+type Subject = { _id: string, title: string, code?: string, course: string }
 
 export default function Tutorials() {
   // auth
@@ -32,6 +35,17 @@ export default function Tutorials() {
   const [tutPages, setTutPages] = useState(1)
   const [loadingTuts, setLoadingTuts] = useState(false)
   const [tutError, setTutError] = useState<string | null>(null)
+
+  // catalog cascading state
+  const [colleges, setColleges] = useState<College[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [catalogCourses, setCatalogCourses] = useState<Course[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
+
+  const [collegeId, setCollegeId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [catalogCourseId, setCatalogCourseId] = useState('')
+  const [subjectId, setSubjectId] = useState('')
 
   // course form
   const [editCourse, setEditCourse] = useState<Course | null>(null)
@@ -67,14 +81,33 @@ export default function Tutorials() {
     } finally { setLoadingCourses(false) }
   }
 
-  // Fetch tutorials when course changes or filters
-  useEffect(() => { if (selectedCourse) fetchTutorials(selectedCourse._id) }, [selectedCourse, q, published, page, limit])
+  // Fetch tutorials: prefer subject if selected, else fallback to course
+  useEffect(() => {
+    if (subjectId) fetchTutorialsBySubject(subjectId)
+    else if (selectedCourse) fetchTutorialsByCourse(selectedCourse._id)
+  }, [subjectId, selectedCourse, q, published, page, limit])
 
-  async function fetchTutorials(courseId: string) {
+  async function fetchTutorialsByCourse(courseId: string) {
     setLoadingTuts(true); setTutError(null)
     try {
       const params: any = { q: q || undefined, published: published === 'all' ? undefined : (published === 'published'), page, limit, sort: '-createdAt' }
       const res = await api.get(`/api/tutorials/${courseId}`, { params })
+      const data = res.data?.data ?? res.data
+      if (Array.isArray(data)) {
+        setTutorials(data)
+        setTutTotal(res.data?.pagination?.total ?? data.length)
+        setTutPages(res.data?.pagination?.pages ?? 1)
+      } else setTutError('Unexpected response format for tutorials')
+    } catch (e: any) {
+      setTutError(e?.response?.data?.message || 'Failed to load tutorials')
+    } finally { setLoadingTuts(false) }
+  }
+
+  async function fetchTutorialsBySubject(subId: string) {
+    setLoadingTuts(true); setTutError(null)
+    try {
+      const params: any = { q: q || undefined, published: published === 'all' ? undefined : (published === 'published'), page, limit, sort: '-createdAt' }
+      const res = await api.get(`/api/tutorials/subject/${subId}`, { params })
       const data = res.data?.data ?? res.data
       if (Array.isArray(data)) {
         setTutorials(data)
@@ -104,7 +137,8 @@ export default function Tutorials() {
   function resetTutForm() { setEditTut(null); setTTitle(''); setTDesc(''); if (pdfRef.current) pdfRef.current.value = '' }
   function startEditTut(t: Tutorial) { setEditTut(t); setTTitle(t.title); setTDesc(t.description || '') }
   async function saveTutorial() {
-    if (!selectedCourse) { alert('Select a course first'); return }
+    // Prefer subject upload; fallback to legacy course
+    if (!subjectId && !selectedCourse) { alert('Select a subject (or legacy course) first'); return }
     try {
       if (editTut) {
         await api.put(`/api/tutorials/file/${editTut._id}`, { title: tTitle, description: tDesc })
@@ -115,13 +149,44 @@ export default function Tutorials() {
         form.append('description', tDesc)
         if (!pdfRef.current || !pdfRef.current.files || pdfRef.current.files.length === 0) { alert('Select a PDF to upload'); return }
         form.append('pdf', pdfRef.current.files[0])
-        await api.post(`/api/tutorials/${selectedCourse._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        if (subjectId) await api.post(`/api/tutorials/subject/${subjectId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        else await api.post(`/api/tutorials/${selectedCourse!._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
       }
-      resetTutForm(); await fetchTutorials(selectedCourse._id)
+      resetTutForm(); if (subjectId) await fetchTutorialsBySubject(subjectId); else if (selectedCourse) await fetchTutorialsByCourse(selectedCourse._id)
     } catch (e: any) { setTutError(e?.response?.data?.message || 'Failed to save tutorial') }
   }
-  async function toggleTutPublish(t: Tutorial, published: boolean) { try { await api.patch(`/api/tutorials/file/${t._id}/publish`, { published }); if (selectedCourse) await fetchTutorials(selectedCourse._id) } catch (e: any) { setTutError(e?.response?.data?.message || 'Failed to update') } }
-  async function deleteTutorial(t: Tutorial) { if (!confirm('Delete this tutorial?')) return; try { await api.delete(`/api/tutorials/file/${t._id}`); if (selectedCourse) await fetchTutorials(selectedCourse._id) } catch (e: any) { setTutError(e?.response?.data?.message || 'Failed to delete') } }
+  async function toggleTutPublish(t: Tutorial, published: boolean) { try { await api.patch(`/api/tutorials/file/${t._id}/publish`, { published }); if (subjectId) await fetchTutorialsBySubject(subjectId); else if (selectedCourse) await fetchTutorialsByCourse(selectedCourse._id) } catch (e: any) { setTutError(e?.response?.data?.message || 'Failed to update') } }
+  async function deleteTutorial(t: Tutorial) { if (!confirm('Delete this tutorial?')) return; try { await api.delete(`/api/tutorials/file/${t._id}`); if (subjectId) await fetchTutorialsBySubject(subjectId); else if (selectedCourse) await fetchTutorialsByCourse(selectedCourse._id) } catch (e: any) { setTutError(e?.response?.data?.message || 'Failed to delete') } }
+
+  // Fetch catalog cascading lists
+  useEffect(() => { fetchColleges() }, [])
+  async function fetchColleges() {
+    try {
+      const res = await api.get('/api/catalog/colleges')
+      setColleges(res.data?.data ?? res.data ?? [])
+    } catch {}
+  }
+  useEffect(() => { if (collegeId) { setDepartments([]); setDepartmentId(''); setCatalogCourses([]); setCatalogCourseId(''); setSubjects([]); setSubjectId(''); fetchDepartments(collegeId) } }, [collegeId])
+  async function fetchDepartments(cid: string) {
+    try {
+      const res = await api.get('/api/catalog/departments', { params: { college: cid } })
+      setDepartments(res.data?.data ?? res.data ?? [])
+    } catch {}
+  }
+  useEffect(() => { if (departmentId) { setCatalogCourses([]); setCatalogCourseId(''); setSubjects([]); setSubjectId(''); fetchCatalogCourses(departmentId) } }, [departmentId])
+  async function fetchCatalogCourses(did: string) {
+    try {
+      const res = await api.get('/api/catalog/courses', { params: { department: did } })
+      setCatalogCourses(res.data?.data ?? res.data ?? [])
+    } catch {}
+  }
+  useEffect(() => { if (catalogCourseId) { setSubjects([]); setSubjectId(''); fetchSubjects(catalogCourseId) } }, [catalogCourseId])
+  async function fetchSubjects(cid: string) {
+    try {
+      const res = await api.get('/api/catalog/subjects', { params: { course: cid } })
+      setSubjects(res.data?.data ?? res.data ?? [])
+    } catch {}
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -453,6 +518,37 @@ export default function Tutorials() {
               <h3 className="text-lg font-medium text-gray-800 mb-4">
                 {editTut ? 'Edit Tutorial' : 'Upload New Tutorial'}
               </h3>
+              {/* Cascading selectors (College -> Department -> Course -> Subject) */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">College</label>
+                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={collegeId} onChange={e => setCollegeId(e.target.value)}>
+                    <option value="">Select college</option>
+                    {colleges.map(c => (<option key={c._id} value={c._id}>{c.name}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={departmentId} onChange={e => setDepartmentId(e.target.value)} disabled={!collegeId}>
+                    <option value="">Select department</option>
+                    {departments.map(d => (<option key={d._id} value={d._id}>{d.name}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={catalogCourseId} onChange={e => setCatalogCourseId(e.target.value)} disabled={!departmentId}>
+                    <option value="">Select course</option>
+                    {catalogCourses.map(c => (<option key={c._id} value={c._id}>{c.code} - {c.title}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={subjectId} onChange={e => setSubjectId(e.target.value)} disabled={!catalogCourseId}>
+                    <option value="">Select subject</option>
+                    {subjects.map(s => (<option key={s._id} value={s._id}>{s.title}</option>))}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>

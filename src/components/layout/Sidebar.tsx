@@ -4,6 +4,10 @@ const nav = [
   { to: '/', label: 'Dashboard' },
   { to: '/users', label: 'Users' },
   { to: '/quizzes', label: 'Quizzes' },
+  { to: '/subjects', label: 'Subjects' },
+  { to: '/colleges', label: 'Colleges' },
+  { to: '/departments', label: 'Departments' },
+  { to: '/courses', label: 'Courses' },
   { to: '/tutorials', label: 'Courses/Tutorials' },
   { to: '/settings', label: 'Settings' },
   // Future: { to: '/events', label: 'Events' }, { to: '/groups', label: 'Groups' }
