@@ -12,7 +12,7 @@ export default function Users() {
   const [limit, setLimit] = useState(10)
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
-  const [sort, setSort] = useState<string>('-createdAt')
+  const [sort] = useState<string>('-createdAt')
   const [selected, setSelected] = useState<any | null>(null)
   const [counts, setCounts] = useState({ total: 0, admins: 0, execs: 0, active: 0 })
 
@@ -117,11 +117,7 @@ export default function Users() {
     }
   }
 
-  function safe(v: any) { return v == null ? '' : String(v) }
-  function csvEscape(v: string) {
-    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g, '""') + '"'
-    return v
-  }
+  // helpers removed (unused)
 
   async function changeRole(u: any, role: 'member' | 'exec' | 'admin') {
     try {
