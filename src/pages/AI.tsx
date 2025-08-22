@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, Image, Paperclip, RotateCcw, Settings, MessageSquare, Trash2 } from 'lucide-react'
+import { api } from '../lib/api'
 
 type ChatMessage = {
   id: string
@@ -127,32 +128,33 @@ export default function ModernAIChat() {
     setLoading(true)
 
     try {
-      // Simulate API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-      
-      const responses = [
-        "I understand your question. Let me help you with that...",
-        "That's an interesting point. Here's what I think...",
-        "Based on what you've shared, I can provide some insights...",
-        "I'd be happy to help you explore this topic further...",
-        "Let me analyze this and give you a comprehensive response..."
-      ]
-      
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: responses[Math.floor(Math.random() * responses.length)] + "\n\nThis is a demo response. In a real implementation, this would connect to your AI service API to generate actual responses based on the user's input" + (selectedImage ? " and the uploaded image" : "") + ".",
-        timestamp: new Date()
+      const currentMessages = (sessions.find(s => s.id === currentSessionId)?.messages || []).concat(userMessage)
+      const payload = {
+        model,
+        messages: currentMessages.map(m => ({
+          role: m.role,
+          content: m.content,
+          imageUrl: m.image && /^https?:\/\//i.test(m.image) ? m.image : undefined,
+        }))
       }
-
-      setSessions(prev => prev.map(session => 
-        session.id === currentSessionId 
-          ? { ...session, messages: [...session.messages, aiMessage] }
-          : session
-      ))
-
+      const { data } = await api.post('/api/ai/chat', payload)
+      if (data?.ok) {
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.text || '',
+          timestamp: new Date()
+        }
+        setSessions(prev => prev.map(session => 
+          session.id === currentSessionId 
+            ? { ...session, messages: [...session.messages, aiMessage] }
+            : session
+        ))
+      } else {
+        setError(data?.error || 'Something went wrong')
+      }
     } catch (err: any) {
-      setError('Failed to send message. Please try again.')
+      setError(err?.response?.data?.error || err?.message || 'Request failed')
     } finally {
       setLoading(false)
     }
