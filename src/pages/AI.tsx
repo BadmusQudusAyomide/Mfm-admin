@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, Image, Paperclip, RotateCcw, Settings, MessageSquare, Trash2 } from 'lucide-react'
+import { Send, Image, Settings, MessageSquare, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 
 type ChatMessage = {
