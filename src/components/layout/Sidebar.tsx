@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, ListChecks, BookOpen, Building2, Boxes, GraduationCap, FileText, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, ListChecks, BookOpen, Building2, Boxes, GraduationCap, FileText, Settings, Brain } from 'lucide-react'
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const nav = [
   { to: '/departments', label: 'Departments', icon: Boxes },
   { to: '/courses', label: 'Courses', icon: GraduationCap },
   { to: '/tutorials', label: 'Courses/Tutorials', icon: FileText },
+  { to: '/ai', label: 'AI', icon: Brain },
   { to: '/settings', label: 'Settings', icon: Settings },
   // Future: { to: '/events', label: 'Events' }, { to: '/groups', label: 'Groups' }
 ]

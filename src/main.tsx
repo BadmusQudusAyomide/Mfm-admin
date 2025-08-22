@@ -14,6 +14,7 @@ import Subjects from './pages/Subjects'
 import Colleges from './pages/Colleges'
 import Departments from './pages/Departments'
 import Courses from './pages/Courses'
+import AI from './pages/AI'
 
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       { path: 'departments', element: <Departments /> },
       { path: 'courses', element: <Courses /> },
       { path: 'tutorials', element: <Tutorials /> },
+      { path: 'ai', element: <AI /> },
       { path: 'settings', element: <Settings /> },
     ],
   },
